@@ -86,7 +86,7 @@ html, body {
 #main {
   flex: 1;
   overflow-y: auto;
-  padding:alc(env(safe-area-inset-top) + 16px) 16px calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
+  padding: calc(env(safe-area-inset-top) + 16px) 16px calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -293,3 +293,12 @@ html, body {
 /* NOTIFICATION */
 .notification { position: fixed; top: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: var(--bg3); border-bottom: 0.5px solid var(--border); padding: 14px 16px; font-size: 14px; color: var(--text); z-index: 200; display: flex; align-items: center; gap: 10px; }
 .notification button { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; }
+.inline-form { background: var(--bg3); border-radius: var(--radius-sm); padding: 12px; margin: 8px 0; display: flex; flex-direction: column; gap: 10px; }
+.inline-form input { background: var(--bg2); border: 0.5px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); padding: 9px 12px; font-size: 14px; font-family: 'DM Sans', sans-serif; width: 100%; }
+.inline-form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.inline-form-field { display: flex; flex-direction: column; gap: 4px; }
+.inline-form-field label { font-size: 11px; color: var(--text3); }
+.inline-form-field input { padding: 7px 8px; text-align: center; }
+.inline-form-btns { display: flex; gap: 8px; }
+.inline-form-btns .btn-primary { flex: 1; }
+.inline-form-btns .btn-ghost { flex: 1; }

@@ -528,14 +528,14 @@ const App = {
   },
 
   // ---- PLAN ----
-  renderPlan() {
+  renderPlan(activeForm, activeSession, activeExIdx) {
     const plan = DB.getPlan();
     const sessions = Object.keys(plan);
+    activeExIdx = activeExIdx !== undefined ? activeExIdx : -1;
 
     document.getElementById('main').innerHTML = `
       <div class="page-header">
         <div class="page-title">Treningsplan</div>
-        <button class="btn-ghost small" onclick="App.addSession()">+ Ny økt</button>
       </div>
       <div id="plan-content">
         ${sessions.map(sess => `
@@ -543,10 +543,18 @@ const App = {
             <div class="plan-sess-header">
               <span class="plan-sess-name">${sess}</span>
               <div class="plan-sess-actions">
-                <button class="btn-icon" onclick="App.editSession('${sess}')">✏️</button>
+                <button class="btn-icon" onclick="App.renderPlan('editSession','${sess}')">✏️</button>
                 <button class="btn-icon danger" onclick="App.deleteSession('${sess}')">🗑️</button>
               </div>
             </div>
+            ${activeForm === 'editSession' && activeSession === sess ? `
+            <div class="inline-form">
+              <input type="text" id="edit-sess-name" value="${sess}" placeholder="Navn på økt">
+              <div class="inline-form-btns">
+                <button class="btn-primary" onclick="App.saveEditSession('${sess}')">Lagre</button>
+                <button class="btn-ghost" onclick="App.renderPlan()">Avbryt</button>
+              </div>
+            </div>` : ''}
             ${plan[sess].map((ex, i) => `
               <div class="plan-ex-row">
                 <div class="plan-ex-info">
@@ -554,56 +562,69 @@ const App = {
                   <span class="plan-ex-meta">${ex.repRange}</span>
                 </div>
                 <div class="plan-ex-actions">
-                  <button class="btn-icon" onclick="App.editExercise('${sess}', ${i})">✏️</button>
-                  <button class="btn-icon danger" onclick="App.deleteExercise('${sess}', ${i})">✕</button>
+                  <button class="btn-icon" onclick="App.renderPlan('editEx','${sess}',${i})">✏️</button>
+                  <button class="btn-icon danger" onclick="App.deleteExercise('${sess}',${i})">✕</button>
                 </div>
               </div>
+              ${activeForm === 'editEx' && activeSession === sess && activeExIdx === i ? `
+              <div class="inline-form">
+                <input type="text" id="edit-ex-name" value="${ex.name}" placeholder="Øvelsesnavn">
+                <div class="inline-form-row">
+                  <div class="inline-form-field"><label>Sett</label><input type="number" id="edit-ex-sets" value="${ex.sets}" min="1" max="10"></div>
+                  <div class="inline-form-field"><label>Min reps</label><input type="number" id="edit-ex-minr" value="${ex.minReps}" min="1"></div>
+                  <div class="inline-form-field"><label>Max reps</label><input type="number" id="edit-ex-maxr" value="${ex.maxReps}" min="1"></div>
+                </div>
+                <div class="inline-form-btns">
+                  <button class="btn-primary" onclick="App.saveEditExercise('${sess}',${i})">Lagre</button>
+                  <button class="btn-ghost" onclick="App.renderPlan()">Avbryt</button>
+                </div>
+              </div>` : ''}
             `).join('')}
-            <button class="btn-ghost small" onclick="App.addExercise('${sess}')">+ Legg til øvelse</button>
+            ${activeForm === 'addEx' && activeSession === sess ? `
+            <div class="inline-form">
+              <input type="text" id="new-ex-name" placeholder="Øvelsesnavn">
+              <div class="inline-form-row">
+                <div class="inline-form-field"><label>Sett</label><input type="number" id="new-ex-sets" value="3" min="1" max="10"></div>
+                <div class="inline-form-field"><label>Min reps</label><input type="number" id="new-ex-minr" value="8" min="1"></div>
+                <div class="inline-form-field"><label>Max reps</label><input type="number" id="new-ex-maxr" value="12" min="1"></div>
+              </div>
+              <div class="inline-form-btns">
+                <button class="btn-primary" onclick="App.saveAddExercise('${sess}')">Legg til</button>
+                <button class="btn-ghost" onclick="App.renderPlan()">Avbryt</button>
+              </div>
+            </div>` : `
+            <button class="btn-ghost small" onclick="App.renderPlan('addEx','${sess}')">+ Legg til øvelse</button>`}
           </div>
         `).join('')}
       </div>
+      ${activeForm === 'addSession' ? `
+      <div class="inline-form" style="margin-top:1rem">
+        <input type="text" id="new-sess-name" placeholder="Navn på økt (f.eks. Full Body)">
+        <div class="inline-form-btns">
+          <button class="btn-primary" onclick="App.saveAddSession()">Opprett økt</button>
+          <button class="btn-ghost" onclick="App.renderPlan()">Avbryt</button>
+        </div>
+      </div>` : `
+      <button class="btn-ghost" style="margin-top:1rem;width:100%" onclick="App.renderPlan('addSession')">+ Ny økt</button>`}
       <div style="margin-top:1rem">
         <button class="btn-ghost" onclick="App.showView('goals')">Se treningsmål 🎯</button>
       </div>
     `;
   },
 
-  addExercise(session) {
-    const name = prompt('Øvelsesnavn:');
-    if (!name) return;
-    const sets = parseInt(prompt('Antall sett (f.eks. 3):')) || 3;
-    const minR = parseInt(prompt('Min reps (f.eks. 8):')) || 8;
-    const maxR = parseInt(prompt('Max reps (f.eks. 12):')) || 12;
+  saveEditSession(oldName) {
+    const newName = document.getElementById('edit-sess-name').value.trim();
+    if (!newName) return;
     const plan = DB.getPlan();
-    plan[session].push({ name, sets, minReps: minR, maxReps: maxR, repRange: `${sets}×${minR}-${maxR}` });
-    DB.savePlan(plan);
+    const entries = Object.entries(plan);
+    const newPlan = {};
+    entries.forEach(([k,v]) => { newPlan[k === oldName ? newName : k] = v; });
+    DB.savePlan(newPlan);
     this.renderPlan();
   },
 
-  editExercise(session, idx) {
-    const plan = DB.getPlan();
-    const ex = plan[session][idx];
-    const name = prompt('Øvelsesnavn:', ex.name);
-    if (!name) return;
-    const sets = parseInt(prompt('Antall sett:', ex.sets)) || ex.sets;
-    const minR = parseInt(prompt('Min reps:', ex.minReps)) || ex.minReps;
-    const maxR = parseInt(prompt('Max reps:', ex.maxReps)) || ex.maxReps;
-    plan[session][idx] = { name, sets, minReps: minR, maxReps: maxR, repRange: `${sets}×${minR}-${maxR}` };
-    DB.savePlan(plan);
-    this.renderPlan();
-  },
-
-  deleteExercise(session, idx) {
-    if (!confirm('Fjerne denne øvelsen?')) return;
-    const plan = DB.getPlan();
-    plan[session].splice(idx, 1);
-    DB.savePlan(plan);
-    this.renderPlan();
-  },
-
-  addSession() {
-    const name = prompt('Navn på ny økt (f.eks. "Full Body"):');
+  saveAddSession() {
+    const name = document.getElementById('new-sess-name').value.trim();
     if (!name) return;
     const plan = DB.getPlan();
     plan[name] = [];
@@ -611,18 +632,38 @@ const App = {
     this.renderPlan();
   },
 
-  editSession(oldName) {
-    const newName = prompt('Nytt navn:', oldName);
-    if (!newName || newName === oldName) return;
+  saveAddExercise(session) {
+    const name = document.getElementById('new-ex-name').value.trim();
+    if (!name) return;
+    const sets = parseInt(document.getElementById('new-ex-sets').value) || 3;
+    const minR = parseInt(document.getElementById('new-ex-minr').value) || 8;
+    const maxR = parseInt(document.getElementById('new-ex-maxr').value) || 12;
     const plan = DB.getPlan();
-    plan[newName] = plan[oldName];
-    delete plan[oldName];
+    plan[session].push({ name, sets, minReps: minR, maxReps: maxR, repRange: sets+'x'+minR+'-'+maxR });
+    DB.savePlan(plan);
+    this.renderPlan();
+  },
+
+  saveEditExercise(session, idx) {
+    const name = document.getElementById('edit-ex-name').value.trim();
+    if (!name) return;
+    const sets = parseInt(document.getElementById('edit-ex-sets').value) || 3;
+    const minR = parseInt(document.getElementById('edit-ex-minr').value) || 8;
+    const maxR = parseInt(document.getElementById('edit-ex-maxr').value) || 12;
+    const plan = DB.getPlan();
+    plan[session][idx] = { name, sets, minReps: minR, maxReps: maxR, repRange: sets+'x'+minR+'-'+maxR };
+    DB.savePlan(plan);
+    this.renderPlan();
+  },
+
+  deleteExercise(session, idx) {
+    const plan = DB.getPlan();
+    plan[session].splice(idx, 1);
     DB.savePlan(plan);
     this.renderPlan();
   },
 
   deleteSession(session) {
-    if (!confirm(`Slette hele "${session}"?`)) return;
     const plan = DB.getPlan();
     delete plan[session];
     DB.savePlan(plan);

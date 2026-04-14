@@ -756,16 +756,17 @@ const App = {
     let html = '<div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>';
     html += '<input type="text" id="bib-search" class="bib-search-input" placeholder="Søk etter øvelse..." oninput="App.filterBibliotek()">';
     html += '<div id="bib-list">';
-    sorted.forEach(([group, exes]) => {
+    sorted.forEach(function(entry) {
+      const group = entry[0], exes = entry[1];
       html += '<div class="bib-group-title">' + group + '</div>';
       exes.forEach(function(item) {
         const sessText = item.sessions.length ? item.sessions.join(', ') : 'Ikke i din plan';
-        html += '<div class="bib-card" onclick="App.openExercise(&quot;' + item.name + '&quot;)"><div class="bib-card-left">';
-        html += '<div class="bib-card-left">';
-        html += '<div class="bib-ex-name">' + item.name + '</div>';
-        html += '<div class="bib-ex-sess">' + sessText + '</div>';
+        html += '<div class="bib-row" onclick="App.openExercise(\'' + item.name.replace(/'/g,'&#39;') + '\'">';
+        html += '<div class="bib-row-body">';
+        html += '<div class="bib-row-name">' + item.name + '</div>';
+        html += '<div class="bib-row-sess">' + sessText + '</div>';
         html += Muscles.renderMuscleChips(item.name);
-        html += '</div><div class="bib-arrow">→</div></div>';
+        html += '</div><div class="bib-row-arrow">›</div></div>';
       });
     });
     html += '</div>';
@@ -774,8 +775,8 @@ const App = {
 
   filterBibliotek() {
     const q = (document.getElementById('bib-search') ? document.getElementById('bib-search').value : '').toLowerCase();
-    document.querySelectorAll('.bib-card').forEach(function(card) {
-      const name = card.querySelector('.bib-ex-name') ? card.querySelector('.bib-ex-name').textContent.toLowerCase() : '';
+    document.querySelectorAll('.bib-row').forEach(function(card) {
+      const name = card.querySelector('.bib-row-name') ? card.querySelector('.bib-row-name').textContent.toLowerCase() : '';
       card.style.display = name.includes(q) ? 'flex' : 'none';
     });
     document.querySelectorAll('.bib-group-title').forEach(function(title) {

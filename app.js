@@ -21,6 +21,7 @@ const App = {
       { id: 'progresjon', icon: '📈', label: 'Graf' },
       { id: 'pr', icon: '🏆', label: 'PR' },
       { id: 'coach', icon: '💬', label: 'Coach' },
+      { id: 'bibliotek', icon: '📚', label: 'Bibliotek' },
       { id: 'plan', icon: '⚙️', label: 'Plan' },
     ];
     nav.innerHTML = items.map(i => `
@@ -44,6 +45,7 @@ const App = {
       coach: () => this.renderCoach(),
       plan: () => this.renderPlan(),
       goals: () => this.renderGoals(),
+      bibliotek: () => this.renderBibliotek(),
     };
 
     main.innerHTML = '';
@@ -261,8 +263,10 @@ const App = {
         <div class="ex-card">
           <div class="ex-card-header">
             <div class="ex-info">
-              <div class="ex-name">${ex.name}</div>
+              <div class="ex-name" onclick="App.toggleMuscleView('${ex.name}')" style="cursor:pointer">${ex.name} <span style="font-size:11px;color:var(--text3)">▾</span></div>
+              <div id="muscle-view-${ex.name.replace(/\s/g,'_')}" style="display:none;margin-top:8px;text-align:center">${Muscles.renderSVG(ex.name, 120)}</div>
               <div class="ex-meta">${ex.repRange}${prVal ? ` · PR: <span class="pr-inline">${prVal.kg}kg</span>` : ''}</div>
+              ${Muscles.renderMuscleChips(ex.name)}
             </div>
             <span class="badge ${adv.type === 'increase' ? 'badge-up' : 'badge-ok'}">${adv.badge}</span>
           </div>
@@ -720,6 +724,107 @@ const App = {
     goals.splice(idx, 1);
     DB.saveGoals(goals);
     this.renderGoals();
+  },
+
+  toggleMuscleView(exName) {
+    const id = 'muscle-view-' + exName.replace(/\s/g, '_');
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  },
+
+  renderBibliotek() {
+    const plan = DB.getPlan();
+    const allExercises = {};
+    Object.entries(plan).forEach(([sess, exes]) => {
+      exes.forEach(ex => {
+        if (!allExercises[ex.name]) allExercises[ex.name] = { sessions: [], ex };
+        allExercises[ex.name].sessions.push(sess);
+      });
+    });
+
+    // Add all known exercises from Muscles data
+    Object.keys(Muscles.exercises).forEach(name => {
+      if (!allExercises[name]) allExercises[name] = { sessions: [], ex: { name } };
+    });
+
+    const groups = {};
+    Object.entries(allExercises).forEach(([name, data]) => {
+      const m = Muscles.getMuscles(name);
+      const primaryGroup = m.primary[0] || 'other';
+      const groupLabel = Muscles.groups[primaryGroup]?.label || 'Annet';
+      if (!groups[groupLabel]) groups[groupLabel] = [];
+      groups[groupLabel].push({ name, ...data });
+    });
+
+    const sorted = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]));
+
+    document.getElementById('main').innerHTML = \`
+      <div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>
+      <input type="text" id="bib-search" placeholder="Søk etter øvelse..." oninput="App.filterBibliotek()" style="width:100%;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px 14px;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:16px">
+      <div id="bib-list">
+        \${sorted.map(([group, exes]) => \`
+          <div class="bib-group-title">\${group}</div>
+          \${exes.map(({ name, sessions }) => \`
+            <div class="bib-card" onclick="App.openExercise('\${name}')">
+              <div class="bib-card-left">
+                <div class="bib-ex-name">\${name}</div>
+                \${sessions.length ? \`<div class="bib-ex-sess">\${sessions.join(', ')}</div>\` : '<div class="bib-ex-sess">Ikke i din plan</div>'}
+                \${Muscles.renderMuscleChips(name)}
+              </div>
+              <div class="bib-arrow">→</div>
+            </div>
+          \`).join('')}
+        \`).join('')}
+      </div>
+    \`;
+  },
+
+  filterBibliotek() {
+    const q = document.getElementById('bib-search')?.value.toLowerCase() || '';
+    document.querySelectorAll('.bib-card').forEach(card => {
+      const name = card.querySelector('.bib-ex-name')?.textContent.toLowerCase() || '';
+      card.style.display = name.includes(q) ? 'flex' : 'none';
+    });
+    document.querySelectorAll('.bib-group-title').forEach(title => {
+      const next = title.nextElementSibling;
+      let hasVisible = false;
+      let el = next;
+      while (el && !el.classList.contains('bib-group-title')) {
+        if (el.style.display !== 'none') hasVisible = true;
+        el = el.nextElementSibling;
+      }
+      title.style.display = hasVisible ? 'block' : 'none';
+    });
+  },
+
+  openExercise(name) {
+    const m = Muscles.getMuscles(name);
+    const { primary, secondary } = Muscles.getMuscleLabels(name);
+    const main = document.getElementById('main');
+    main.innerHTML = \`
+      <div class="page-header">
+        <button class="btn-ghost small" onclick="App.showView('bibliotek')">← Tilbake</button>
+        <div class="page-title" style="font-size:18px">\${name}</div>
+      </div>
+      <div style="display:flex;justify-content:center;margin:16px 0">
+        \${Muscles.renderSVG(name, 140)}
+      </div>
+      <div class="card">
+        <div class="card-title">Primære muskler</div>
+        <div class="muscle-chips">\${primary.map(l => \`<span class="chip chip-primary">\${l}</span>\`).join('') || '<span style="color:var(--text3);font-size:13px">Ingen data</span>'}</div>
+      </div>
+      \${secondary.length ? \`<div class="card">
+        <div class="card-title">Sekundære muskler</div>
+        <div class="muscle-chips">\${secondary.map(l => \`<span class="chip chip-secondary">\${l}</span>\`).join('')}</div>
+      </div>\` : ''}
+      <div class="card">
+        <div class="card-title">Fargekode</div>
+        <div style="display:flex;gap:12px;font-size:12px;color:var(--text2)">
+          <span><span style="color:#4ade80">●</span> Primær muskel</span>
+          <span><span style="color:#60a5fa">●</span> Sekundær muskel</span>
+        </div>
+      </div>
+    \`;
   },
 
   async checkDailyCoach() {

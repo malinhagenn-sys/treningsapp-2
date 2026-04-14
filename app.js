@@ -25,7 +25,8 @@ const App = {
     const isInMer = merViews.has(this.currentView);
     nav.innerHTML = main.map(i => {
       const active = i.id === this.currentView || (i.id === 'mer' && isInMer);
-      return '<button class="nav-btn' + (active ? ' active' : '') + '" onclick="App.' + (i.id === 'mer' ? 'showMer' : 'showView') + '(\'' + i.id + '\')">' +
+      const fn = i.id === 'mer' ? 'showMer()' : "showView(\'" + i.id + "\')";
+      return '<button class="nav-btn' + (active ? ' active' : '') + '" onclick="App.' + fn + '">' +
         '<span class="nav-icon">' + i.icon + '</span>' +
         '<span class="nav-label">' + i.label + '</span>' +
         '</button>';
@@ -229,40 +230,36 @@ const App = {
     const mens = DB.isMens(today);
     const pr = DB.getPR();
 
-    main.innerHTML = `
-      <div class="page-header">
-        <div class="page-title">Logg økt</div>
-      </div>
-      <div class="session-tabs">
-        ${sessions.map(s => `<button class="sess-tab${s === session ? ' active' : ''}" onclick="App.currentSession='${s}'; App.renderLogg()">${s}</button>`).join('')}
-      </div>
-      <div class="date-mens-row">
-        <input type="date" id="log-date" value="${today}">
-        <button class="toggle-pill${mens ? ' on' : ''}" id="mens-log-btn" onclick="App.toggleMensLog()">${mens ? '🌸 Mens' : 'Mens?'}</button>
-      </div>
-      <div id="coach-pre-msg" class="coach-pre-card">
-        <div class="coach-pre-loading">Henter råd fra coach...</div>
-      </div>
-      <div id="exercises-container"></div>
-      <div class="log-actions">
-        <button class="btn-ghost" onclick="App.showAddExerciseToLog()">+ Legg til øvelse</button>
-        <button class="btn-primary" onclick="App.saveLog()">Lagre økt 💾</button>
-        <span id="log-status" class="log-status"></span>
-      </div>
-      <div id="add-ex-form" style="display:none" class="card" style="margin-top:12px">
-        <div class="card-title">Legg til øvelse</div>
-        <input type="text" id="add-ex-name" placeholder="Øvelsesnavn" class="add-ex-input">
-        <div class="add-ex-row">
-          <div class="add-ex-field"><label>Sett</label><input type="number" id="add-ex-sets" value="3" min="1" max="10"></div>
-          <div class="add-ex-field"><label>Min reps</label><input type="number" id="add-ex-minr" value="8" min="1"></div>
-          <div class="add-ex-field"><label>Max reps</label><input type="number" id="add-ex-maxr" value="12" min="1"></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn-primary" onclick="App.addExToLog()">Legg til</button>
-          <button class="btn-ghost" onclick="document.getElementById('add-ex-form').style.display='none'">Avbryt</button>
-        </div>
-      </div>
-    `;
+    let loggHtml = '<div class="page-header"><div class="page-title">Logg økt</div></div>';
+    loggHtml += '<div class="session-tabs">';
+    sessions.forEach(function(s) {
+      loggHtml += '<button class="sess-tab' + (s === session ? ' active' : '') + '" onclick="App.currentSession=\'' + s + '\';App.renderLogg()">' + s + '</button>';
+    });
+    loggHtml += '</div>';
+    loggHtml += '<div class="date-mens-row">';
+    loggHtml += '<input type="date" id="log-date" value="' + today + '">';
+    loggHtml += '<button class="toggle-pill' + (mens ? ' on' : '') + '" id="mens-log-btn" onclick="App.toggleMensLog()">' + (mens ? '🌸 Mens' : 'Mens?') + '</button>';
+    loggHtml += '</div>';
+    loggHtml += '<div id="coach-pre-msg" class="coach-pre-card"><div class="coach-pre-loading">Henter råd fra coach...</div></div>';
+    loggHtml += '<div id="exercises-container"></div>';
+    loggHtml += '<div class="log-actions">';
+    loggHtml += '<button class="btn-ghost" onclick="App.showAddExerciseToLog()">+ Legg til øvelse</button>';
+    loggHtml += '<button class="btn-primary" onclick="App.saveLog()">Lagre økt 💾</button>';
+    loggHtml += '<span id="log-status" class="log-status"></span>';
+    loggHtml += '</div>';
+    loggHtml += '<div id="add-ex-form" class="card" style="display:none;margin-top:12px">';
+    loggHtml += '<div class="card-title">Legg til øvelse</div>';
+    loggHtml += '<input type="text" id="add-ex-name" placeholder="Øvelsesnavn" class="add-ex-input">';
+    loggHtml += '<div class="add-ex-row">';
+    loggHtml += '<div class="add-ex-field"><label>Sett</label><input type="number" id="add-ex-sets" value="3" min="1" max="10"></div>';
+    loggHtml += '<div class="add-ex-field"><label>Min reps</label><input type="number" id="add-ex-minr" value="8" min="1"></div>';
+    loggHtml += '<div class="add-ex-field"><label>Max reps</label><input type="number" id="add-ex-maxr" value="12" min="1"></div>';
+    loggHtml += '</div>';
+    loggHtml += '<div style="display:flex;gap:8px;margin-top:10px">';
+    loggHtml += '<button class="btn-primary" onclick="App.addExToLog()">Legg til</button>';
+    loggHtml += '<button class="btn-ghost" onclick="document.getElementById(\'add-ex-form\').style.display=\'none\'">Avbryt</button>';
+    loggHtml += '</div></div>';
+    main.innerHTML = loggHtml;
 
     this.renderExercises(session, plan[session], pr);
     this.loadPreCoachMessage(session);
@@ -768,22 +765,23 @@ const App = {
   renderBibliotek() {
     const plan = DB.getPlan();
     const allExercises = {};
-    Object.entries(plan).forEach(([sess, exes]) => {
-      exes.forEach(ex => {
-        if (!allExercises[ex.name]) allExercises[ex.name] = { sessions: [], ex };
-        allExercises[ex.name].sessions.push(sess);
+    Object.keys(plan).forEach(function(sess) {
+      plan[sess].forEach(function(ex) {
+        if (!allExercises[ex.name]) allExercises[ex.name] = [];
+        allExercises[ex.name].push(sess);
       });
     });
-    Object.keys(Muscles.exercises).forEach(name => {
-      if (!allExercises[name]) allExercises[name] = { sessions: [], ex: { name } };
+    Object.keys(Muscles.exercises).forEach(function(name) {
+      if (!allExercises[name]) allExercises[name] = [];
     });
     const groups = {};
-    Object.entries(allExercises).forEach(([name, data]) => {
+    Object.keys(allExercises).forEach(function(name) {
+      const sessions = allExercises[name];
       const m = Muscles.getMuscles(name);
       const primaryGroup = m.primary[0] || 'other';
-      const groupLabel = Muscles.groups[primaryGroup] ? Muscles.groups[primaryGroup].label : 'Annet';
+      const groupLabel = (Muscles.groups[primaryGroup] && Muscles.groups[primaryGroup].label) || 'Annet';
       if (!groups[groupLabel]) groups[groupLabel] = [];
-      groups[groupLabel].push({ name, sessions: data.sessions });
+      groups[groupLabel].push({ name: name, sessions: sessions });
     });
     const sorted = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]));
     let html = '<div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>';

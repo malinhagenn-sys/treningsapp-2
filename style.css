@@ -346,3 +346,25 @@ html, body {
 /* MUSCLE MODAL BUTTON */
 .muscle-btn { background:var(--bg3); border:0.5px solid var(--border); border-radius:20px; font-size:12px; padding:2px 8px; cursor:pointer; color:var(--text2); margin-left:6px; }
 .muscle-btn:active { background:var(--bg4); }
+
+/* UKENTLIG OVERSIKT */
+.week-row { display:flex; justify-content:space-between; margin-bottom:1rem; }
+.week-day { display:flex; flex-direction:column; align-items:center; gap:4px; flex:1; }
+.week-day.today .week-label { color:var(--green); font-weight:500; }
+.week-label { font-size:10px; color:var(--text3); text-transform:uppercase; }
+.week-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:500; line-height:1.2; text-align:center; }
+.week-dot.empty { background:var(--bg3); border:0.5px solid var(--border); color:var(--text3); }
+.week-dot.trained { background:rgba(74,222,128,0.2); border:0.5px solid rgba(74,222,128,0.4); color:#4ade80; }
+.week-dot.rest { background:rgba(167,139,250,0.2); border:0.5px solid rgba(167,139,250,0.4); color:#a78bfa; }
+.week-dot.mens-dot { background:rgba(244,114,182,0.2); border:0.5px solid rgba(244,114,182,0.4); font-size:14px; }
+.week-mens { font-size:10px; margin-top:2px; }
+
+/* HVILEDAGER */
+.hvile-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:0.5px solid var(--border); }
+.hvile-date { font-size:13px; color:var(--text2); flex:1; text-transform:capitalize; }
+.hvile-status { font-size:12px; padding:3px 8px; border-radius:20px; }
+.hvile-status.trained { background:rgba(74,222,128,0.15); color:#4ade80; }
+.hvile-status.rest { background:rgba(167,139,250,0.15); color:#a78bfa; }
+.hvile-status.empty { color:var(--text3); }
+.hvile-reason-btn { padding:7px 12px; border-radius:var(--border-radius-md); border:0.5px solid var(--border2); background:transparent; color:var(--text2); font-size:13px; cursor:pointer; font-family:'DM Sans',sans-serif; }
+.hvile-reason-btn:active { background:var(--bg3); }

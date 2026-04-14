@@ -21,7 +21,7 @@ const App = {
       { id: 'progresjon', icon: '📈', label: 'Graf' },
       { id: 'mer', icon: '☰', label: 'Mer' },
     ];
-    const merViews = new Set(['coach','pr','bibliotek','plan','goals']);
+    const merViews = new Set(['coach','pr','bibliotek','plan','goals','mens','hvile']);
     const isInMer = merViews.has(this.currentView);
     nav.innerHTML = main.map(i => {
       const active = i.id === this.currentView || (i.id === 'mer' && isInMer);
@@ -42,6 +42,8 @@ const App = {
       { id: 'pr', icon: '🏆', label: 'Personlige rekorder', desc: 'Alle dine PR-er' },
       { id: 'bibliotek', icon: '📚', label: 'Øvelsesbibliotek', desc: 'Øvelser og muskelgrupper' },
       { id: 'plan', icon: '⚙️', label: 'Treningsplan', desc: 'Rediger plan og mål' },
+      { id: 'mens', icon: '🌸', label: 'Menstruasjonstracking', desc: 'Logg syklus og mensuker' },
+      { id: 'hvile', icon: '😴', label: 'Hviledager', desc: 'Logg hvile og årsak' },
     ];
     main.innerHTML = '<div class="page-header"><div class="page-title">Mer</div></div>' +
       items.map(i =>
@@ -66,6 +68,8 @@ const App = {
       plan: () => this.renderPlan(),
       goals: () => this.renderGoals(),
       bibliotek: () => this.renderBibliotek(),
+      mens: () => this.renderMens(),
+      hvile: () => this.renderHvile(),
     };
 
     main.innerHTML = '';
@@ -78,7 +82,6 @@ const App = {
     const dagsform = DB.getDagsformForDate(today);
     const hist = DB.getHistory();
     const lastSess = hist.length ? hist[hist.length - 1] : null;
-    const mens = DB.isMens(today);
     const pr = DB.getPR();
     const prCount = Object.keys(pr).length;
 
@@ -86,7 +89,7 @@ const App = {
     main.innerHTML = `
       <div class="hjem-header">
         <div class="hjem-greeting">${this.greeting()}</div>
-        <div class="hjem-date">${this.formatDate(today)}${mens ? ' <span class="mens-pill">🌸 Menstruasjonsuke</span>' : ''}</div>
+        <div class="hjem-date">${this.formatDate(today)}</div>
       </div>
 
       ${!dagsform ? `
@@ -122,10 +125,7 @@ const App = {
             <label>Protein (gram)</label>
             <input type="number" id="df-protein" min="0" max="500" placeholder="150">
           </div>
-          <div class="df-item mens-toggle-item">
-            <label>Menstruasjonsuke?</label>
-            <button class="toggle-pill${mens ? ' on' : ''}" id="mens-home-btn" onclick="App.toggleMensHome()">${mens ? 'Ja' : 'Nei'}</button>
-          </div>
+
         </div>
         <button class="btn-primary" onclick="App.saveDagsform()">Lagre dagsform</button>
       </div>` : `
@@ -141,7 +141,9 @@ const App = {
         <button class="btn-ghost small" onclick="DB.saveDagsform('${today}', null); App.renderHjem()">Endre</button>
       </div>`}
 
-      <div class="quick-session-title">Start økt</div>
+      <div class="card-title" style="margin-bottom:10px">Denne uken</div>
+      ${this.renderWeekOverview()}
+      <div class="quick-session-title" style="margin-top:1.2rem">Start økt</div>
       <div class="session-grid">
         ${Object.keys(DB.getPlan()).map(s => `
           <button class="session-card" onclick="App.startSession('${s}')">
@@ -227,7 +229,6 @@ const App = {
 
     const main = document.getElementById('main');
     const today = new Date().toISOString().split('T')[0];
-    const mens = DB.isMens(today);
     const pr = DB.getPR();
 
     let loggHtml = '<div class="page-header"><div class="page-title">Logg økt</div></div>';
@@ -238,7 +239,7 @@ const App = {
     loggHtml += '</div>';
     loggHtml += '<div class="date-mens-row">';
     loggHtml += '<input type="date" id="log-date" value="' + today + '">';
-    loggHtml += '<button class="toggle-pill' + (mens ? ' on' : '') + '" id="mens-log-btn" onclick="App.toggleMensLog()">' + (mens ? '🌸 Mens' : 'Mens?') + '</button>';
+
     loggHtml += '</div>';
     loggHtml += '<div id="coach-pre-msg" class="coach-pre-card"><div class="coach-pre-loading">Henter råd fra coach...</div></div>';
     loggHtml += '<div id="exercises-container"></div>';
@@ -900,7 +901,8 @@ const App = {
     inner += '<div style="font-size:16px;font-weight:500;color:var(--text)">' + name + '</div>';
     inner += '<button onclick="document.getElementById(\'muscle-modal\').remove()" style="background:var(--bg3);border:none;color:var(--text2);font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>';
     inner += '</div>';
-    inner += '<div style="display:flex;justify-content:center;margin-bottom:14px">' + Muscles.renderAnatomyImage(name, 160) + '</div>';
+    var imgDiv = '<div style="display:flex;justify-content:center;margin-bottom:14px">' + Muscles.renderAnatomyImage(name, 160) + '</div>';
+    inner += imgDiv;
     if (labels.primary.length) {
       inner += '<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Primære muskler</div>';
       inner += '<div class="muscle-chips">' + labels.primary.map(l => '<span class="chip chip-primary">'+l+'</span>').join('') + '</div></div>';
@@ -915,6 +917,189 @@ const App = {
     modal.innerHTML = inner;
     modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     document.body.appendChild(modal);
+  },
+
+  // ---- UKENTLIG OVERSIKT (used in hjem) ----
+  getWeekDates() {
+    const today = new Date();
+    const day = today.getDay(); // 0=sun, 1=mon...
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      dates.push(d.toISOString().split('T')[0]);
+    }
+    return dates;
+  },
+
+  renderWeekOverview() {
+    const dates = this.getWeekDates();
+    const hist = DB.getHistory();
+    const hvile = DB.get('tl_hvile') || {};
+    const mens = DB.getMens();
+    const days = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+    const today = new Date().toISOString().split('T')[0];
+
+    let html = '<div class="week-row">';
+    dates.forEach(function(date, i) {
+      const sessions = hist.filter(e => e.date === date);
+      const isHvile = hvile[date];
+      const isMens = mens[date];
+      const isToday = date === today;
+      let dot = '<div class="week-dot empty"></div>';
+      let label = '';
+      if (sessions.length) {
+        dot = '<div class="week-dot trained">' + sessions.map(s => s.session.replace(' ','').substring(0,2)).join('<br>') + '</div>';
+      } else if (isHvile) {
+        dot = '<div class="week-dot rest">Z</div>';
+      }
+      if (isMens) label = '<div class="week-mens">🌸</div>';
+      html += '<div class="week-day' + (isToday ? ' today' : '') + '">';
+      html += '<div class="week-label">' + days[i] + '</div>';
+      html += dot + label;
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  },
+
+  // ---- HVILEDAG ----
+  renderHvile() {
+    const hvile = DB.get('tl_hvile') || {};
+    const dates = this.getWeekDates();
+    const today = new Date().toISOString().split('T')[0];
+    const reasons = ['Valgt hvile', 'Syk', 'Reise/travel', 'Jobb/stress', 'Skade', 'Annet'];
+
+    let html = '<div class="page-header"><div class="page-title">Hviledager</div></div>';
+
+    // Log today
+    const todayEntry = hvile[today];
+    html += '<div class="card" style="margin-bottom:14px">';
+    html += '<div class="card-title">Logg i dag som hviledag</div>';
+    if (todayEntry) {
+      html += '<div style="font-size:14px;color:var(--color-text-primary);margin-bottom:10px">Logget: <strong>' + todayEntry + '</strong></div>';
+      html += '<button class="btn-ghost small" onclick="App.removeHvile(\'' + today + '\')">Fjern</button>';
+    } else {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:0">';
+      reasons.forEach(function(r) {
+        html += '<button class="hvile-reason-btn" onclick="App.logHvile(\'' + today + '\',\'' + r + '\')">'+r+'</button>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // This week
+    html += '<div class="card-title" style="margin-bottom:8px">Denne uken</div>';
+    dates.forEach(function(date) {
+      const entry = hvile[date];
+      const hist = DB.getHistory().filter(e => e.date === date);
+      const dayName = new Date(date).toLocaleDateString('no-NO', {weekday:'long',day:'numeric',month:'short'});
+      html += '<div class="hvile-row">';
+      html += '<div class="hvile-date">' + dayName + '</div>';
+      if (hist.length) {
+        html += '<div class="hvile-status trained">' + hist.map(e => e.session).join(', ') + '</div>';
+      } else if (entry) {
+        html += '<div class="hvile-status rest">' + entry + '</div>';
+        if (date === today) html += '<button class="btn-icon" onclick="App.removeHvile(\'' + date + '\')">✕</button>';
+      } else {
+        html += '<div class="hvile-status empty">–</div>';
+      }
+      html += '</div>';
+    });
+
+    // History
+    const allDates = Object.keys(hvile).sort().reverse().slice(0,10);
+    if (allDates.length > 0) {
+      html += '<div class="card-title" style="margin-top:1.5rem;margin-bottom:8px">Siste hviledager</div>';
+      allDates.forEach(function(date) {
+        const dayName = new Date(date).toLocaleDateString('no-NO', {weekday:'long',day:'numeric',month:'short'});
+        html += '<div class="hvile-row"><div class="hvile-date">' + dayName + '</div><div class="hvile-status rest">' + hvile[date] + '</div></div>';
+      });
+    }
+
+    document.getElementById('main').innerHTML = html;
+  },
+
+  logHvile(date, reason) {
+    const hvile = DB.get('tl_hvile') || {};
+    hvile[date] = reason;
+    DB.set('tl_hvile', hvile);
+    this.renderHvile();
+  },
+
+  removeHvile(date) {
+    const hvile = DB.get('tl_hvile') || {};
+    delete hvile[date];
+    DB.set('tl_hvile', hvile);
+    this.renderHvile();
+  },
+
+  // ---- MENSTRUASJONSTRACKING ----
+  renderMens() {
+    const mens = DB.getMens();
+    const dates = this.getWeekDates();
+    const today = new Date().toISOString().split('T')[0];
+    const isTodayMens = mens[today];
+
+    let html = '<div class="page-header"><div class="page-title">Menstruasjonstracking 🌸</div></div>';
+
+    // Today toggle
+    html += '<div class="card" style="margin-bottom:14px">';
+    html += '<div class="card-title">I dag</div>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between">';
+    html += '<span style="font-size:14px;color:var(--color-text-primary)">Er du i menstruasjonsuken?</span>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:14px;color:var(--color-text-primary)">Er du i menstruasjonsuken?</span><button class="toggle-pill' + (isTodayMens ? ' on' : '') + '" onclick="App.toggleMensDate(\'' + today + '\')">'+  (isTodayMens ? 'Ja' : 'Nei') + '</button></div>';
+    html += '</div></div>';
+
+    // This week
+    html += '<div class="card-title" style="margin-bottom:8px">Denne uken</div>';
+    const dayNames = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+    html += '<div class="week-row" style="margin-bottom:1.5rem">';
+    dates.forEach(function(date, i) {
+      const on = mens[date];
+      const isToday = date === today;
+      html += '<div class="week-day' + (isToday ? ' today' : '') + '" onclick="App.toggleMensDate(\'' + date + '\')" style="cursor:pointer">';
+      html += '<div class="week-label">' + dayNames[i] + '</div>';
+      html += '<div class="week-dot' + (on ? ' mens-dot' : ' empty') + '">' + (on ? '🌸' : '') + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    // Logg for earlier dates
+    html += '<div class="card-title" style="margin-bottom:8px">Logg tidligere dager</div>';
+    html += '<div class="card">';
+    html += '<input type="date" id="mens-date-input" value="' + today + '" style="width:100%;background:var(--bg3);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);color:var(--color-text-primary);padding:8px 12px;font-size:14px;margin-bottom:10px">';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn-primary" style="flex:1" onclick="App.toggleMensDate(document.getElementById(\'mens-date-input\').value)">Merk som menstruasjonsuke</button>';
+    html += '</div></div>';
+
+    // History
+    const allMensDates = Object.keys(mens).filter(d => mens[d]).sort().reverse().slice(0,20);
+    if (allMensDates.length) {
+      html += '<div class="card-title" style="margin-top:1.5rem;margin-bottom:8px">Loggede dager</div>';
+      allMensDates.forEach(function(date) {
+        const dayName = new Date(date).toLocaleDateString('no-NO', {weekday:'long',day:'numeric',month:'short',year:'numeric'});
+        html += '<div class="hvile-row"><div class="hvile-date">' + dayName + '</div>';
+        html += '<div class="hvile-row"><div class="hvile-date">' + dayName + '</div><button class="btn-icon danger" onclick="App.removeMensDate(\'' + date + '\')">✕</button></div>';
+      });
+    }
+
+    document.getElementById('main').innerHTML = html;
+  },
+
+  toggleMensDate(date) {
+    if (!date) return;
+    DB.toggleMens(date);
+    this.renderMens();
+  },
+
+  removeMensDate(date) {
+    const m = DB.getMens();
+    delete m[date];
+    DB.set('tl_mens', m);
+    this.renderMens();
   },
 
   async checkDailyCoach() {

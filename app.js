@@ -741,54 +741,46 @@ const App = {
         allExercises[ex.name].sessions.push(sess);
       });
     });
-
-    // Add all known exercises from Muscles data
     Object.keys(Muscles.exercises).forEach(name => {
       if (!allExercises[name]) allExercises[name] = { sessions: [], ex: { name } };
     });
-
     const groups = {};
     Object.entries(allExercises).forEach(([name, data]) => {
       const m = Muscles.getMuscles(name);
       const primaryGroup = m.primary[0] || 'other';
-      const groupLabel = Muscles.groups[primaryGroup]?.label || 'Annet';
+      const groupLabel = Muscles.groups[primaryGroup] ? Muscles.groups[primaryGroup].label : 'Annet';
       if (!groups[groupLabel]) groups[groupLabel] = [];
-      groups[groupLabel].push({ name, ...data });
+      groups[groupLabel].push({ name, sessions: data.sessions });
     });
-
     const sorted = Object.entries(groups).sort((a,b) => a[0].localeCompare(b[0]));
-
-    document.getElementById('main').innerHTML = \`
-      <div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>
-      <input type="text" id="bib-search" placeholder="Søk etter øvelse..." oninput="App.filterBibliotek()" style="width:100%;background:var(--bg2);border:0.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:10px 14px;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:16px">
-      <div id="bib-list">
-        \${sorted.map(([group, exes]) => \`
-          <div class="bib-group-title">\${group}</div>
-          \${exes.map(({ name, sessions }) => \`
-            <div class="bib-card" onclick="App.openExercise('\${name}')">
-              <div class="bib-card-left">
-                <div class="bib-ex-name">\${name}</div>
-                \${sessions.length ? \`<div class="bib-ex-sess">\${sessions.join(', ')}</div>\` : '<div class="bib-ex-sess">Ikke i din plan</div>'}
-                \${Muscles.renderMuscleChips(name)}
-              </div>
-              <div class="bib-arrow">→</div>
-            </div>
-          \`).join('')}
-        \`).join('')}
-      </div>
-    \`;
+    let html = '<div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>';
+    html += '<input type="text" id="bib-search" class="bib-search-input" placeholder="Søk etter øvelse..." oninput="App.filterBibliotek()">';
+    html += '<div id="bib-list">';
+    sorted.forEach(([group, exes]) => {
+      html += '<div class="bib-group-title">' + group + '</div>';
+      exes.forEach(function(item) {
+        const sessText = item.sessions.length ? item.sessions.join(', ') : 'Ikke i din plan';
+        html += '<div class="bib-card" onclick="App.openExercise(&quot;' + item.name + '&quot;)"><div class="bib-card-left">';
+        html += '<div class="bib-card-left">';
+        html += '<div class="bib-ex-name">' + item.name + '</div>';
+        html += '<div class="bib-ex-sess">' + sessText + '</div>';
+        html += Muscles.renderMuscleChips(item.name);
+        html += '</div><div class="bib-arrow">→</div></div>';
+      });
+    });
+    html += '</div>';
+    document.getElementById('main').innerHTML = html;
   },
 
   filterBibliotek() {
-    const q = document.getElementById('bib-search')?.value.toLowerCase() || '';
-    document.querySelectorAll('.bib-card').forEach(card => {
-      const name = card.querySelector('.bib-ex-name')?.textContent.toLowerCase() || '';
+    const q = (document.getElementById('bib-search') ? document.getElementById('bib-search').value : '').toLowerCase();
+    document.querySelectorAll('.bib-card').forEach(function(card) {
+      const name = card.querySelector('.bib-ex-name') ? card.querySelector('.bib-ex-name').textContent.toLowerCase() : '';
       card.style.display = name.includes(q) ? 'flex' : 'none';
     });
-    document.querySelectorAll('.bib-group-title').forEach(title => {
-      const next = title.nextElementSibling;
+    document.querySelectorAll('.bib-group-title').forEach(function(title) {
+      let el = title.nextElementSibling;
       let hasVisible = false;
-      let el = next;
       while (el && !el.classList.contains('bib-group-title')) {
         if (el.style.display !== 'none') hasVisible = true;
         el = el.nextElementSibling;
@@ -798,36 +790,34 @@ const App = {
   },
 
   openExercise(name) {
-    const m = Muscles.getMuscles(name);
-    const { primary, secondary } = Muscles.getMuscleLabels(name);
-    const main = document.getElementById('main');
-    main.innerHTML = \`
-      <div class="page-header">
-        <button class="btn-ghost small" onclick="App.showView('bibliotek')">← Tilbake</button>
-        <div class="page-title" style="font-size:18px">\${name}</div>
-      </div>
-      <div style="display:flex;justify-content:center;margin:16px 0">
-        \${Muscles.renderSVG(name, 140)}
-      </div>
-      <div class="card">
-        <div class="card-title">Primære muskler</div>
-        <div class="muscle-chips">\${primary.map(l => \`<span class="chip chip-primary">\${l}</span>\`).join('') || '<span style="color:var(--text3);font-size:13px">Ingen data</span>'}</div>
-      </div>
-      \${secondary.length ? \`<div class="card">
-        <div class="card-title">Sekundære muskler</div>
-        <div class="muscle-chips">\${secondary.map(l => \`<span class="chip chip-secondary">\${l}</span>\`).join('')}</div>
-      </div>\` : ''}
-      <div class="card">
-        <div class="card-title">Fargekode</div>
-        <div style="display:flex;gap:12px;font-size:12px;color:var(--text2)">
-          <span><span style="color:#4ade80">●</span> Primær muskel</span>
-          <span><span style="color:#60a5fa">●</span> Sekundær muskel</span>
-        </div>
-      </div>
-    \`;
+    const labels = Muscles.getMuscleLabels(name);
+    const primary = labels.primary;
+    const secondary = labels.secondary;
+    let html = '<div class="page-header">';
+    html += '<button class="btn-ghost small" onclick="App.showView(\'bibliotek\')">← Tilbake</button>';
+    html += '<div class="page-title" style="font-size:18px">' + name + '</div></div>';
+    html += '<div style="display:flex;justify-content:center;margin:16px 0">' + Muscles.renderSVG(name, 140) + '</div>';
+    html += '<div class="card"><div class="card-title">Primære muskler</div><div class="muscle-chips">';
+    if (primary.length) {
+      primary.forEach(function(l) { html += '<span class="chip chip-primary">' + l + '</span>'; });
+    } else {
+      html += '<span style="color:var(--text3);font-size:13px">Ingen data</span>';
+    }
+    html += '</div></div>';
+    if (secondary.length) {
+      html += '<div class="card"><div class="card-title">Sekundære muskler</div><div class="muscle-chips">';
+      secondary.forEach(function(l) { html += '<span class="chip chip-secondary">' + l + '</span>'; });
+      html += '</div></div>';
+    }
+    html += '<div class="card"><div class="card-title">Fargekode</div>';
+    html += '<div style="display:flex;gap:12px;font-size:12px;color:var(--text2)">';
+    html += '<span><span style="color:#4ade80">●</span> Primær muskel</span>';
+    html += '<span><span style="color:#60a5fa">●</span> Sekundær muskel</span>';
+    html += '</div></div>';
+    document.getElementById('main').innerHTML = html;
   },
 
-  async checkDailyCoach() {
+    async checkDailyCoach() {
     const today = new Date().toISOString().split('T')[0];
     const last = DB.getLastSeen();
     if (last === today) return;

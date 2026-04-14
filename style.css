@@ -319,3 +319,26 @@ html, body {
 .bib-row-arrow { color: var(--text3); font-size: 22px; font-weight: 300; flex-shrink: 0; line-height: 1; }
 
 .bib-search-input { width:100%; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius-sm); color:var(--text); padding:10px 14px; font-size:14px; margin-bottom:16px; font-family:'DM Sans',sans-serif; }
+
+/* MER MENU */
+.mer-row { display:flex; align-items:center; gap:14px; padding:14px 16px; background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius); margin-bottom:8px; cursor:pointer; }
+.mer-row:active { background:var(--bg3); }
+.mer-icon { font-size:22px; width:36px; text-align:center; }
+.mer-info { flex:1; }
+.mer-label { font-size:15px; font-weight:500; color:var(--text); }
+.mer-desc { font-size:12px; color:var(--text3); margin-top:2px; }
+.mer-arrow { font-size:22px; color:var(--text3); font-weight:300; }
+
+/* BIBLIOTEK CATEGORIES */
+.bib-cat { display:flex; align-items:center; justify-content:space-between; padding:12px 4px; cursor:pointer; border-bottom:0.5px solid var(--border); margin-bottom:4px; }
+.bib-cat-label { font-size:13px; font-weight:500; color:var(--text); }
+.bib-cat-count { font-size:11px; color:var(--text3); font-weight:400; }
+.bib-cat-arrow { font-size:20px; color:var(--text3); transition:transform 0.2s; display:inline-block; }
+.bib-cat-items { display:none; margin-bottom:8px; }
+
+/* ADD EXERCISE TO LOG */
+.add-ex-input { width:100%; background:var(--bg3); border:0.5px solid var(--border2); border-radius:var(--radius-sm); color:var(--text); padding:9px 12px; font-size:14px; font-family:'DM Sans',sans-serif; margin-bottom:10px; }
+.add-ex-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.add-ex-field { display:flex; flex-direction:column; gap:4px; }
+.add-ex-field label { font-size:11px; color:var(--text3); }
+.add-ex-field input { background:var(--bg3); border:0.5px solid var(--border); border-radius:var(--radius-sm); color:var(--text); padding:7px 8px; font-size:14px; text-align:center; font-family:'DM Sans',sans-serif; }

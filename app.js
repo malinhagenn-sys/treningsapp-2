@@ -15,21 +15,40 @@ const App = {
 
   renderNav() {
     const nav = document.getElementById('nav');
-    const items = [
+    const main = [
       { id: 'hjem', icon: '⚡', label: 'Hjem' },
       { id: 'logg', icon: '📋', label: 'Logg' },
-      { id: 'progresjon', icon: '📈', label: 'Graf' },
-      { id: 'pr', icon: '🏆', label: 'PR' },
       { id: 'coach', icon: '💬', label: 'Coach' },
-      { id: 'bibliotek', icon: '📚', label: 'Bibliotek' },
-      { id: 'plan', icon: '⚙️', label: 'Plan' },
+      { id: 'mer', icon: '☰', label: 'Mer' },
     ];
-    nav.innerHTML = items.map(i => `
-      <button class="nav-btn${this.currentView === i.id ? ' active' : ''}" onclick="App.showView('${i.id}')">
-        <span class="nav-icon">${i.icon}</span>
-        <span class="nav-label">${i.label}</span>
-      </button>
-    `).join('');
+    const merViews = new Set(['progresjon','pr','bibliotek','plan','goals']);
+    const isInMer = merViews.has(this.currentView);
+    nav.innerHTML = main.map(i => {
+      const active = i.id === this.currentView || (i.id === 'mer' && isInMer);
+      return '<button class="nav-btn' + (active ? ' active' : '') + '" onclick="App.' + (i.id === 'mer' ? 'showMer' : 'showView') + '(\'' + i.id + '\')">' +
+        '<span class="nav-icon">' + i.icon + '</span>' +
+        '<span class="nav-label">' + i.label + '</span>' +
+        '</button>';
+    }).join('');
+  },
+
+  showMer() {
+    this.currentView = 'mer';
+    this.renderNav();
+    const main = document.getElementById('main');
+    const items = [
+      { id: 'progresjon', icon: '📈', label: 'Progresjon', desc: 'Se grafer og utvikling' },
+      { id: 'pr', icon: '🏆', label: 'Personlige rekorder', desc: 'Alle dine PR-er' },
+      { id: 'bibliotek', icon: '📚', label: 'Øvelsesbibliotek', desc: 'Øvelser og muskelgrupper' },
+      { id: 'plan', icon: '⚙️', label: 'Treningsplan', desc: 'Rediger plan og mål' },
+    ];
+    main.innerHTML = '<div class="page-header"><div class="page-title">Mer</div></div>' +
+      items.map(i =>
+        '<div class="mer-row" onclick="App.showView(\'' + i.id + '\')">' +
+        '<span class="mer-icon">' + i.icon + '</span>' +
+        '<div class="mer-info"><div class="mer-label">' + i.label + '</div><div class="mer-desc">' + i.desc + '</div></div>' +
+        '<div class="mer-arrow">›</div></div>'
+      ).join('');
   },
 
   showView(view) {
@@ -226,8 +245,22 @@ const App = {
       </div>
       <div id="exercises-container"></div>
       <div class="log-actions">
+        <button class="btn-ghost" onclick="App.showAddExerciseToLog()">+ Legg til øvelse</button>
         <button class="btn-primary" onclick="App.saveLog()">Lagre økt 💾</button>
         <span id="log-status" class="log-status"></span>
+      </div>
+      <div id="add-ex-form" style="display:none" class="card" style="margin-top:12px">
+        <div class="card-title">Legg til øvelse</div>
+        <input type="text" id="add-ex-name" placeholder="Øvelsesnavn" class="add-ex-input">
+        <div class="add-ex-row">
+          <div class="add-ex-field"><label>Sett</label><input type="number" id="add-ex-sets" value="3" min="1" max="10"></div>
+          <div class="add-ex-field"><label>Min reps</label><input type="number" id="add-ex-minr" value="8" min="1"></div>
+          <div class="add-ex-field"><label>Max reps</label><input type="number" id="add-ex-maxr" value="12" min="1"></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn-primary" onclick="App.addExToLog()">Legg til</button>
+          <button class="btn-ghost" onclick="document.getElementById('add-ex-form').style.display='none'">Avbryt</button>
+        </div>
       </div>
     `;
 
@@ -756,18 +789,23 @@ const App = {
     let html = '<div class="page-header"><div class="page-title">Øvelsesbibliotek 📚</div></div>';
     html += '<input type="text" id="bib-search" class="bib-search-input" placeholder="Søk etter øvelse..." oninput="App.filterBibliotek()">';
     html += '<div id="bib-list">';
-    sorted.forEach(function(entry) {
+    sorted.forEach(function(entry, gi) {
       const group = entry[0], exes = entry[1];
-      html += '<div class="bib-group-title">' + group + '</div>';
+      html += '<div class="bib-cat" onclick="App.toggleBibCat(' + gi + ')">' +
+        '<span class="bib-cat-label">' + group + ' <span class="bib-cat-count">(' + exes.length + ')</span></span>' +
+        '<span class="bib-cat-arrow" id="bib-arr-' + gi + '">›</span>' +
+        '</div>';
+      html += '<div class="bib-cat-items" id="bib-cat-' + gi + '">';
       exes.forEach(function(item) {
         const sessText = item.sessions.length ? item.sessions.join(', ') : 'Ikke i din plan';
-        html += '<div class="bib-row" onclick="App.openExercise(\'' + item.name.replace(/'/g,'&#39;') + '\'">';
+        html += '<div class="bib-row" onclick="App.openExercise(\'' + item.name.replace(/'/g,'&#39;') + '\')">';
         html += '<div class="bib-row-body">';
         html += '<div class="bib-row-name">' + item.name + '</div>';
         html += '<div class="bib-row-sess">' + sessText + '</div>';
         html += Muscles.renderMuscleChips(item.name);
         html += '</div><div class="bib-row-arrow">›</div></div>';
       });
+      html += '</div>';
     });
     html += '</div>';
     document.getElementById('main').innerHTML = html;
@@ -775,19 +813,21 @@ const App = {
 
   filterBibliotek() {
     const q = (document.getElementById('bib-search') ? document.getElementById('bib-search').value : '').toLowerCase();
-    document.querySelectorAll('.bib-row').forEach(function(card) {
-      const name = card.querySelector('.bib-row-name') ? card.querySelector('.bib-row-name').textContent.toLowerCase() : '';
-      card.style.display = name.includes(q) ? 'flex' : 'none';
+    if (!q) return;
+    document.querySelectorAll('.bib-cat-items').forEach(function(cat) { cat.style.display = 'block'; });
+    document.querySelectorAll('.bib-row').forEach(function(row) {
+      const name = row.querySelector('.bib-row-name') ? row.querySelector('.bib-row-name').textContent.toLowerCase() : '';
+      row.style.display = name.includes(q) ? 'flex' : 'none';
     });
-    document.querySelectorAll('.bib-group-title').forEach(function(title) {
-      let el = title.nextElementSibling;
-      let hasVisible = false;
-      while (el && !el.classList.contains('bib-group-title')) {
-        if (el.style.display !== 'none') hasVisible = true;
-        el = el.nextElementSibling;
-      }
-      title.style.display = hasVisible ? 'block' : 'none';
-    });
+  },
+
+  toggleBibCat(idx) {
+    const cat = document.getElementById('bib-cat-' + idx);
+    const arr = document.getElementById('bib-arr-' + idx);
+    if (!cat) return;
+    const open = cat.style.display !== 'none' && cat.style.display !== '';
+    cat.style.display = open ? 'none' : 'block';
+    if (arr) arr.style.transform = open ? 'rotate(0deg)' : 'rotate(90deg)';
   },
 
   openExercise(name) {
@@ -818,7 +858,44 @@ const App = {
     document.getElementById('main').innerHTML = html;
   },
 
-    async checkDailyCoach() {
+    showAddExerciseToLog() {
+    const form = document.getElementById('add-ex-form');
+    if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  },
+
+  addExToLog() {
+    const name = document.getElementById('add-ex-name') ? document.getElementById('add-ex-name').value.trim() : '';
+    if (!name) return;
+    const sets = parseInt(document.getElementById('add-ex-sets').value) || 3;
+    const minR = parseInt(document.getElementById('add-ex-minr').value) || 8;
+    const maxR = parseInt(document.getElementById('add-ex-maxr').value) || 12;
+    const ex = { name: name, sets: sets, minReps: minR, maxReps: maxR, repRange: sets + 'x' + minR + '-' + maxR };
+    const container = document.getElementById('exercises-container');
+    if (!container) return;
+    const pr = DB.getPR();
+    const prVal = pr[name];
+    const adv = { type: 'ok', text: 'Ny øvelse i dagens økt.', badge: 'Logg vekt' };
+    let html = '<div class="ex-card">';
+    html += '<div class="ex-card-header"><div class="ex-info">';
+    html += '<div class="ex-name">' + name + '</div>';
+    html += '<div class="ex-meta">' + ex.repRange + (prVal ? ' · PR: <span class="pr-inline">' + prVal.kg + 'kg</span>' : '') + '</div>';
+    html += '</div><span class="badge badge-ok">' + adv.badge + '</span></div>';
+    html += '<div class="advice-strip advice-ok">' + adv.text + '</div>';
+    html += '<div class="sets-grid">';
+    for (let s = 0; s < sets; s++) {
+      html += '<div class="set-item"><div class="set-num">Sett ' + (s+1) + '</div><div class="set-inputs">';
+      html += '<input type="number" placeholder="kg" min="0" step="0.5" data-ex="' + name + '" data-set="' + s + '" data-field="kg" class="set-input">';
+      html += '<span class="set-x">×</span>';
+      html += '<input type="number" placeholder="reps" min="0" step="1" data-ex="' + name + '" data-set="' + s + '" data-field="reps" class="set-input">';
+      html += '</div></div>';
+    }
+    html += '</div></div>';
+    container.innerHTML += html;
+    document.getElementById('add-ex-form').style.display = 'none';
+    document.getElementById('add-ex-name').value = '';
+  },
+
+  async checkDailyCoach() {
     const today = new Date().toISOString().split('T')[0];
     const last = DB.getLastSeen();
     if (last === today) return;

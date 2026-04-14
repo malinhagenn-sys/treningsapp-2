@@ -18,10 +18,10 @@ const App = {
     const main = [
       { id: 'hjem', icon: '⚡', label: 'Hjem' },
       { id: 'logg', icon: '📋', label: 'Logg' },
-      { id: 'coach', icon: '💬', label: 'Coach' },
+      { id: 'progresjon', icon: '📈', label: 'Graf' },
       { id: 'mer', icon: '☰', label: 'Mer' },
     ];
-    const merViews = new Set(['progresjon','pr','bibliotek','plan','goals']);
+    const merViews = new Set(['coach','pr','bibliotek','plan','goals']);
     const isInMer = merViews.has(this.currentView);
     nav.innerHTML = main.map(i => {
       const active = i.id === this.currentView || (i.id === 'mer' && isInMer);
@@ -38,7 +38,7 @@ const App = {
     this.renderNav();
     const main = document.getElementById('main');
     const items = [
-      { id: 'progresjon', icon: '📈', label: 'Progresjon', desc: 'Se grafer og utvikling' },
+      { id: 'coach', icon: '💬', label: 'Coach', desc: 'Chat med din personlige coach' },
       { id: 'pr', icon: '🏆', label: 'Personlige rekorder', desc: 'Alle dine PR-er' },
       { id: 'bibliotek', icon: '📚', label: 'Øvelsesbibliotek', desc: 'Øvelser og muskelgrupper' },
       { id: 'plan', icon: '⚙️', label: 'Treningsplan', desc: 'Rediger plan og mål' },
@@ -293,8 +293,7 @@ const App = {
         <div class="ex-card">
           <div class="ex-card-header">
             <div class="ex-info">
-              <div class="ex-name" onclick="App.toggleMuscleView('${ex.name}')" style="cursor:pointer">${ex.name} <span style="font-size:11px;color:var(--text3)">▾</span></div>
-              <div id="muscle-view-${ex.name.replace(/\s/g,'_')}" style="display:none;margin-top:8px;text-align:center">${Muscles.renderSVG(ex.name, 120)}</div>
+              <div class="ex-name">${ex.name} <button class="muscle-btn" onclick="event.stopPropagation();App.showMuscleModal('${ex.name}')">💪</button></div>
               <div class="ex-meta">${ex.repRange}${prVal ? ` · PR: <span class="pr-inline">${prVal.kg}kg</span>` : ''}</div>
               ${Muscles.renderMuscleChips(ex.name)}
             </div>
@@ -756,11 +755,6 @@ const App = {
     this.renderGoals();
   },
 
-  toggleMuscleView(exName) {
-    const id = 'muscle-view-' + exName.replace(/\s/g, '_');
-    const el = document.getElementById(id);
-    if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
-  },
 
   renderBibliotek() {
     const plan = DB.getPlan();
@@ -796,7 +790,8 @@ const App = {
       html += '<div class="bib-cat-items" id="bib-cat-' + gi + '">';
       exes.forEach(function(item) {
         const sessText = item.sessions.length ? item.sessions.join(', ') : 'Ikke i din plan';
-        html += '<div class="bib-row" onclick="App.openExercise(\'' + item.name.replace(/'/g,'&#39;') + '\')">';
+        const safeName = item.name.replace(/\\/g,'').replace(/'/g,"\'");
+        html += '<div class="bib-row" onclick="App.openExercise(\'' + safeName + '\')">';
         html += '<div class="bib-row-body">';
         html += '<div class="bib-row-name">' + item.name + '</div>';
         html += '<div class="bib-row-sess">' + sessText + '</div>';
@@ -891,6 +886,35 @@ const App = {
     container.innerHTML += html;
     document.getElementById('add-ex-form').style.display = 'none';
     document.getElementById('add-ex-name').value = '';
+  },
+
+  showMuscleModal(name) {
+    const existing = document.getElementById('muscle-modal');
+    if (existing) existing.remove();
+    const labels = Muscles.getMuscleLabels(name);
+    const modal = document.createElement('div');
+    modal.id = 'muscle-modal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+    let inner = '<div style="background:var(--bg2);border-radius:16px;padding:20px;width:100%;max-width:360px;max-height:85vh;overflow-y:auto">';
+    inner += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">';
+    inner += '<div style="font-size:16px;font-weight:500;color:var(--text)">' + name + '</div>';
+    inner += '<button onclick="document.getElementById(\'muscle-modal\').remove()" style="background:var(--bg3);border:none;color:var(--text2);font-size:18px;width:32px;height:32px;border-radius:50%;cursor:pointer">✕</button>';
+    inner += '</div>';
+    inner += '<div style="display:flex;justify-content:center;margin-bottom:14px">' + Muscles.renderAnatomyImage(name, 160) + '</div>';
+    if (labels.primary.length) {
+      inner += '<div style="margin-bottom:8px"><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Primære muskler</div>';
+      inner += '<div class="muscle-chips">' + labels.primary.map(l => '<span class="chip chip-primary">'+l+'</span>').join('') + '</div></div>';
+    }
+    if (labels.secondary.length) {
+      inner += '<div><div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px">Sekundære muskler</div>';
+      inner += '<div class="muscle-chips">' + labels.secondary.map(l => '<span class="chip chip-secondary">'+l+'</span>').join('') + '</div></div>';
+    }
+    inner += '<div style="display:flex;gap:12px;font-size:12px;color:var(--text3);margin-top:12px">';
+    inner += '<span><span style="color:#4ade80">●</span> Primær</span><span><span style="color:#60a5fa">●</span> Sekundær</span>';
+    inner += '</div></div>';
+    modal.innerHTML = inner;
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
   },
 
   async checkDailyCoach() {

@@ -342,3 +342,7 @@ html, body {
 .add-ex-field { display:flex; flex-direction:column; gap:4px; }
 .add-ex-field label { font-size:11px; color:var(--text3); }
 .add-ex-field input { background:var(--bg3); border:0.5px solid var(--border); border-radius:var(--radius-sm); color:var(--text); padding:7px 8px; font-size:14px; text-align:center; font-family:'DM Sans',sans-serif; }
+
+/* MUSCLE MODAL BUTTON */
+.muscle-btn { background:var(--bg3); border:0.5px solid var(--border); border-radius:20px; font-size:12px; padding:2px 8px; cursor:pointer; color:var(--text2); margin-left:6px; }
+.muscle-btn:active { background:var(--bg4); }
